@@ -29,24 +29,40 @@ type repoFilter struct {
 	function interface{}
 }
 
+type contributorsCounters struct {
+	Additions int `json:"lines_added"`
+	Deletions int `json:"lines_deleted"`
+	Commits   int `json:"commits"`
+}
+
+type contributorsStats struct {
+	LifeTimeCounts contributorsCounters `json:"life_time_counts"`
+	PeriodCounts   contributorsCounters `json:"period_counts"`
+}
+
 type repoItem struct {
-	Name             string `json:"name"`
-	Owner            string `json:"owner,omitempty"`
-	Type             string `json:"type,omitempty"`
-	ForksCount       int    `json:"forksCount"`
-	StargazersCount  int    `json:"stargazersCount"`
-	WatchersCount    int    `json:"watchersCount"`
-	OpenIssuesCount  int    `json:"openIssuesCount"`
-	SubscriberCount  int    `json:"subscriberCount"`
-	CommitCount      int    `json:"commitCount"`
-	PullCreatedCount int    `json:"pullCreatedCount"`
-	PullClosedCount  int    `json:"pullClosedCount"`
-	PullURL          string `json:"pullURL,omitempty"`
-	IssuesURL        string `json:"issuesURL,omitempty"`
+	Name             string            `json:"name"`
+	Owner            string            `json:"owner,omitempty"`
+	Type             string            `json:"type,omitempty"`
+	ForksCount       int               `json:"forks_count"`
+	StargazersCount  int               `json:"stargazers_count"`
+	WatchersCount    int               `json:"watchers_count"`
+	OpenIssuesCount  int               `json:"open_issues_count"`
+	SubscriberCount  int               `json:"subscriber_count"`
+	CommitCount      int               `json:"commit_count"`
+	PullCreatedCount int               `json:"pull_created_count"`
+	PullClosedCount  int               `json:"pull_closed_count"`
+	Stats            contributorsStats `json:"stats"`
+}
+
+type Period struct {
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
 }
 
 type repoSummary struct {
 	Totals          repoItem   `json:"totals"`
+	Period          Period     `json:"period"`
 	Details         []repoItem `json:"details"`
 	name            string
 	forksCount      int
@@ -92,13 +108,6 @@ var repoCmd = &cobra.Command{
 		if err != nil {
 			os.Exit(-1)
 		}
-		/*
-			data, err := json.Marshal(repos)
-			if err != nil {
-				fmt.Println("JSON marshal failed: ", err)
-			}
-			fmt.Println(string(data))
-		*/
 
 		filteredRepos := f.filterRepos(repos, repoFilterList)
 
@@ -135,8 +144,20 @@ var repoCmd = &cobra.Command{
 					}
 					if v.ClosedAt != nil && v.ClosedAt.After(startDate) && v.ClosedAt.Before(endDate) {
 						filteredRepos[i].PullClosedCount += 1
-						fmt.Println("closed")
 					}
+				}
+			}
+
+			// Look at contributors
+			contributorActivity, _, err := ghClient.Repositories.ListContributorsStats(context.Background(), r.Owner, r.Name)
+			if err != nil {
+				fmt.Println("Contributor stats failed", err)
+			}
+
+			for _, v := range contributorActivity {
+				for _, w := range v.Weeks {
+					incActivity(&filteredRepos[i], w)
+					incPeriodActivity(&filteredRepos[i], w)
 				}
 			}
 
@@ -150,6 +171,24 @@ var repoCmd = &cobra.Command{
 		fmt.Println(string(data))
 
 	},
+}
+
+func incActivity(ri *repoItem, ws github.WeeklyStats) {
+	ri.Stats.LifeTimeCounts.Additions += *ws.Additions
+	ri.Stats.LifeTimeCounts.Commits += *ws.Commits
+	ri.Stats.LifeTimeCounts.Deletions += *ws.Deletions
+	return
+}
+
+// incPeriodActivity if not date range set or it is within the request date range
+func incPeriodActivity(ri *repoItem, ws github.WeeklyStats) {
+	if (ws.Week.After(startDate) && ws.Week.Before(endDate)) ||
+		(startDate.IsZero() && endDate.IsZero()) {
+		ri.Stats.PeriodCounts.Additions += *ws.Additions
+		ri.Stats.PeriodCounts.Commits += *ws.Commits
+		ri.Stats.PeriodCounts.Deletions += *ws.Deletions
+	}
+	return
 }
 
 func setDateRange() {
@@ -174,7 +213,13 @@ func setDateRange() {
 
 func summarize(r []repoItem) repoSummary {
 	sum := repoSummary{}
-	sum.Totals.Name = "Totals for all repositories"
+	sum.Totals.Name = "repositories: ["
+	sum.Period.StartDate = startDate
+	if endDate.IsZero() {
+		sum.Period.EndDate = time.Now()
+	} else {
+		sum.Period.EndDate = endDate
+	}
 	sum.Totals.ForksCount = 0
 	sum.Totals.OpenIssuesCount = 0
 	sum.Totals.StargazersCount = 0
@@ -184,7 +229,12 @@ func summarize(r []repoItem) repoSummary {
 	sum.Totals.PullCreatedCount = 0
 	sum.Totals.CommitCount = 0
 
-	for _, repo := range r {
+	for i, repo := range r {
+		if i == 0 {
+			sum.Totals.Name += repo.Name
+		} else {
+			sum.Totals.Name += ", " + repo.Name
+		}
 		sum.Totals.ForksCount += repo.ForksCount
 		sum.Totals.OpenIssuesCount += repo.OpenIssuesCount
 		sum.Totals.StargazersCount += repo.StargazersCount
@@ -193,7 +243,15 @@ func summarize(r []repoItem) repoSummary {
 		sum.Totals.PullClosedCount += repo.PullClosedCount
 		sum.Totals.PullCreatedCount += repo.PullCreatedCount
 		sum.Totals.CommitCount += repo.CommitCount
+		sum.Totals.Stats.LifeTimeCounts.Additions += repo.Stats.LifeTimeCounts.Additions
+		sum.Totals.Stats.LifeTimeCounts.Deletions += repo.Stats.LifeTimeCounts.Deletions
+		sum.Totals.Stats.LifeTimeCounts.Commits += repo.Stats.LifeTimeCounts.Commits
+		sum.Totals.Stats.PeriodCounts.Additions += repo.Stats.PeriodCounts.Additions
+		sum.Totals.Stats.PeriodCounts.Deletions += repo.Stats.PeriodCounts.Deletions
+		sum.Totals.Stats.PeriodCounts.Commits += repo.Stats.PeriodCounts.Commits
 	}
+
+	sum.Totals.Name += "]"
 
 	sum.Details = r
 
@@ -228,8 +286,6 @@ func (f *repoFilter) filterRepos(r []*github.Repository, fl []repoFilter) []repo
 							} else {
 								i.SubscriberCount = 0
 							}
-							i.PullURL = *v.PullsURL
-							i.IssuesURL = *v.IssuesURL
 
 							items = append(items, i)
 							break
