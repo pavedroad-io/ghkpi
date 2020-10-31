@@ -1,4 +1,4 @@
-module github.com/pavedroad-io/githubStatsKPI
+module github.com/pavedroad-io/ghkpi
 
 go 1.15
 

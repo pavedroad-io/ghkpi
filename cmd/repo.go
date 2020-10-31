@@ -1,5 +1,4 @@
-/*
- */
+// Package cmd A Cobra CLI for generating  GitHum
 package cmd
 
 import (
@@ -55,6 +54,7 @@ type repoItem struct {
 	Stats            contributorsStats `json:"stats"`
 }
 
+// Period contains the start and end dates for this KPI period
 type Period struct {
 	StartDate time.Time `json:"start_date"`
 	EndDate   time.Time `json:"end_date"`
@@ -124,8 +124,8 @@ var repoCmd = &cobra.Command{
 			// Get commit activity
 			commits, _, _ := ghClient.Repositories.ListCommits(context.Background(), r.Owner, r.Name, &clo)
 
-			for _, _ = range commits {
-				filteredRepos[i].CommitCount += 1
+			for range commits {
+				filteredRepos[i].CommitCount++
 			}
 
 			// Get pull request activity
@@ -133,17 +133,17 @@ var repoCmd = &cobra.Command{
 			for i, v := range pr {
 				if startDate.IsZero() {
 					if v.CreatedAt != nil {
-						filteredRepos[i].PullCreatedCount += 1
+						filteredRepos[i].PullCreatedCount++
 					}
 					if v.ClosedAt != nil {
-						filteredRepos[i].PullClosedCount += 1
+						filteredRepos[i].PullClosedCount++
 					}
 				} else {
 					if v.CreatedAt.After(startDate) && v.CreatedAt.Before(endDate) {
-						filteredRepos[i].PullCreatedCount += 1
+						filteredRepos[i].PullCreatedCount++
 					}
 					if v.ClosedAt != nil && v.ClosedAt.After(startDate) && v.ClosedAt.Before(endDate) {
-						filteredRepos[i].PullClosedCount += 1
+						filteredRepos[i].PullClosedCount++
 					}
 				}
 			}
