@@ -1,3 +1,5 @@
+package cmd
+
 /*
 Copyright © 2020 PavedRoad, Inc john@pavedroad.io
 
@@ -13,7 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
 
 import (
 	"fmt"
@@ -37,6 +38,7 @@ var rootCmd = &cobra.Command{
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
+// Execute starts Cobra CLI processing
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

@@ -6,10 +6,31 @@ You can filter repositories using the -t option and specify a
 comma separated list of topics associated with your GitHub
 repositories
 
+- [Get it](#get-it)
+- [Use it](#use-it)
+- [Licensing](#licensing)
+
+## Get it
+
 ```bash
-ghkpi repo -t one,two,three
+go get -u github.com/pavedroad/ghkpi/ghkpi
 ```
 
+Or [download the binary](https://github.com/pavedroad-io/ghkpi/releases/latest) from the releases page.
+
+## Use it
+
+### Filtering
+
+#### By topics
+Use the -t options to filter repositories based on GitHub associated topics.  You can
+specify more than one topic by separating them with commas.
+```bash
+
+$ ghkpi repo -t one,two,three
+```
+
+#### By date range
 You can specify a date range with the -r option.  The two options are
 **current** or **prior**, for the current or previous month.  Failing to select a 
 period defaults to the full repository history
@@ -17,7 +38,7 @@ period defaults to the full repository history
 The stats objects hold counters for lifetime and period specified.  Additions and Deletions are line counts.
 
 ```bash
-ghkpi repo -t one,two,three -r prior
+$ ghkpi repo -t one,two,three -r prior
 ```
 
 
@@ -305,3 +326,7 @@ ghkpi repo -t one,two,three -r prior
   ]
 }
 ```
+
+## Licensing
+
+- Any original code is licensed under the [Apache 2 License](./LICENSE).
