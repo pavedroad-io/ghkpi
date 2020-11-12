@@ -16,6 +16,12 @@ var topics = []string{}
 var topicsDefault = []string{}
 var startDate time.Time
 var endDate time.Time
+var oldestRepo time.Time = time.Now()
+
+// Command line option holders
+var endDateArgument string
+var startDateArgument string
+var totalsOnly bool
 var dateRange string
 
 type repoQuery struct {
@@ -29,9 +35,12 @@ type repoFilter struct {
 }
 
 type contributorsCounters struct {
-	Additions int `json:"lines_added"`
-	Deletions int `json:"lines_deleted"`
-	Commits   int `json:"commits"`
+	Period           Period   `json:"period"`
+	Additions        int      `json:"lines_added"`
+	Deletions        int      `json:"lines_deleted"`
+	Commits          int      `json:"commits"`
+	ContributorCount int      `json:"contributor_count"`
+	ContributorList  []string `json:"contributor_list"`
 }
 
 type contributorsStats struct {
@@ -61,13 +70,8 @@ type Period struct {
 }
 
 type repoSummary struct {
-	Totals          repoItem   `json:"totals"`
-	Period          Period     `json:"period"`
-	Details         []repoItem `json:"details"`
-	name            string
-	forksCount      int
-	stargazersCount int
-	watchersCount   int
+	Totals  repoItem   `json:"totals"`
+	Details []repoItem `json:"details"`
 }
 
 var repoFilterList []repoFilter
@@ -85,6 +89,13 @@ var repoCmd = &cobra.Command{
 
 		if dateRange != "" {
 			setDateRange()
+		}
+
+		if startDateArgument != "" {
+			if endDateArgument == "" {
+				fmt.Println("Usage: both a start and end date are required, -s date -e date")
+			}
+			setDynamicDateRange(startDateArgument, endDateArgument)
 		}
 
 		f := &repoFilter{}
@@ -158,19 +169,56 @@ var repoCmd = &cobra.Command{
 				for _, w := range v.Weeks {
 					incActivity(&filteredRepos[i], w)
 					incPeriodActivity(&filteredRepos[i], w)
+					incPeriodContributors(&filteredRepos[i], w,
+						v.GetAuthor().GetLogin())
+					incActivityContributors(&filteredRepos[i], w,
+						v.GetAuthor().GetLogin())
 				}
 			}
 
 		}
 
 		aggregateResults := summarize(filteredRepos)
-		data, err := json.Marshal(aggregateResults)
+
+		var data []byte
+		if totalsOnly {
+			data, err = json.Marshal(aggregateResults.Totals)
+		} else {
+			data, err = json.Marshal(aggregateResults)
+		}
+
 		if err != nil {
 			fmt.Println("JSON marshal failed: ", err)
 		}
 		fmt.Println(string(data))
 
 	},
+}
+
+func incActivityContributors(ri *repoItem, ws github.WeeklyStats, contributor string) {
+	if !listContains(contributor, ri.Stats.LifeTimeCounts.ContributorList) && *ws.Commits > 0 {
+		ri.Stats.LifeTimeCounts.ContributorList = append(
+			ri.Stats.LifeTimeCounts.ContributorList, contributor)
+		ri.Stats.LifeTimeCounts.ContributorCount++
+	}
+
+	return
+}
+
+func incPeriodContributors(ri *repoItem, ws github.WeeklyStats, contributor string) {
+	if (ws.Week.After(startDate) && ws.Week.Before(endDate)) ||
+		(startDate.IsZero() && endDate.IsZero()) {
+		if !listContains(contributor, ri.Stats.PeriodCounts.ContributorList) && *ws.Commits > 0 {
+
+			//fmt.Println(contributor, ri.Stats.PeriodCounts.ContributorList)
+			ri.Stats.PeriodCounts.ContributorList = append(
+				ri.Stats.PeriodCounts.ContributorList, contributor)
+			ri.Stats.PeriodCounts.ContributorCount++
+			//fmt.Println(contributor, ri.Stats.PeriodCounts.ContributorList)
+			//fmt.Println(ws)
+		}
+	}
+	return
 }
 
 func incActivity(ri *repoItem, ws github.WeeklyStats) {
@@ -188,6 +236,23 @@ func incPeriodActivity(ri *repoItem, ws github.WeeklyStats) {
 		ri.Stats.PeriodCounts.Commits += *ws.Commits
 		ri.Stats.PeriodCounts.Deletions += *ws.Deletions
 	}
+	return
+}
+
+func setDynamicDateRange(start, end string) {
+	dt, err := time.Parse(time.RFC3339, start)
+	if err != nil {
+		fmt.Println("Start date error: ", err)
+		os.Exit(-1)
+	}
+	startDate = dt
+
+	dt, err = time.Parse(time.RFC3339, end)
+	if err != nil {
+		fmt.Println("End date error: ", err)
+		os.Exit(-1)
+	}
+	endDate = dt
 	return
 }
 
@@ -214,12 +279,16 @@ func setDateRange() {
 func summarize(r []repoItem) repoSummary {
 	sum := repoSummary{}
 	sum.Totals.Name = "repositories: ["
-	sum.Period.StartDate = startDate
+
+	sum.Totals.Stats.PeriodCounts.Period.StartDate = startDate
 	if endDate.IsZero() {
-		sum.Period.EndDate = time.Now()
+		sum.Totals.Stats.PeriodCounts.Period.EndDate = time.Now()
 	} else {
-		sum.Period.EndDate = endDate
+		sum.Totals.Stats.PeriodCounts.Period.EndDate = endDate
 	}
+	sum.Totals.Stats.LifeTimeCounts.Period.StartDate = oldestRepo
+	sum.Totals.Stats.LifeTimeCounts.Period.EndDate = time.Now()
+
 	sum.Totals.ForksCount = 0
 	sum.Totals.OpenIssuesCount = 0
 	sum.Totals.StargazersCount = 0
@@ -243,12 +312,30 @@ func summarize(r []repoItem) repoSummary {
 		sum.Totals.PullClosedCount += repo.PullClosedCount
 		sum.Totals.PullCreatedCount += repo.PullCreatedCount
 		sum.Totals.CommitCount += repo.CommitCount
+
 		sum.Totals.Stats.LifeTimeCounts.Additions += repo.Stats.LifeTimeCounts.Additions
 		sum.Totals.Stats.LifeTimeCounts.Deletions += repo.Stats.LifeTimeCounts.Deletions
 		sum.Totals.Stats.LifeTimeCounts.Commits += repo.Stats.LifeTimeCounts.Commits
 		sum.Totals.Stats.PeriodCounts.Additions += repo.Stats.PeriodCounts.Additions
 		sum.Totals.Stats.PeriodCounts.Deletions += repo.Stats.PeriodCounts.Deletions
 		sum.Totals.Stats.PeriodCounts.Commits += repo.Stats.PeriodCounts.Commits
+
+		for _, c := range repo.Stats.PeriodCounts.ContributorList {
+			if !listContains(c, sum.Totals.Stats.PeriodCounts.ContributorList) {
+				sum.Totals.Stats.PeriodCounts.ContributorList = append(
+					sum.Totals.Stats.PeriodCounts.ContributorList, c)
+			}
+			sum.Totals.Stats.PeriodCounts.ContributorCount = len(sum.Totals.Stats.PeriodCounts.ContributorList)
+		}
+
+		for _, c := range repo.Stats.LifeTimeCounts.ContributorList {
+			if !listContains(c, sum.Totals.Stats.LifeTimeCounts.ContributorList) {
+				sum.Totals.Stats.LifeTimeCounts.ContributorList = append(
+					sum.Totals.Stats.LifeTimeCounts.ContributorList, c)
+			}
+			sum.Totals.Stats.LifeTimeCounts.ContributorCount = len(sum.Totals.Stats.LifeTimeCounts.ContributorList)
+		}
+
 	}
 
 	sum.Totals.Name += "]"
@@ -272,7 +359,7 @@ func (f *repoFilter) filterRepos(r []*github.Repository, fl []repoFilter) []repo
 				switch f.filter {
 				case "topic":
 					for _, t := range v.Topics {
-						if containsTopic(t, topics) {
+						if listContains(t, topics) {
 							i := repoItem{}
 							i.Name = *v.Name
 							i.Owner = *v.Owner.Login
@@ -285,6 +372,11 @@ func (f *repoFilter) filterRepos(r []*github.Repository, fl []repoFilter) []repo
 								i.SubscriberCount = *v.SubscribersCount
 							} else {
 								i.SubscriberCount = 0
+							}
+
+							//fmt.Println("oldest: ", oldestRepo, "repo date: ", v.CreatedAt.Time)
+							if v.CreatedAt.Time.Before(oldestRepo) {
+								oldestRepo = v.CreatedAt.Time
 							}
 
 							items = append(items, i)
@@ -324,14 +416,14 @@ func (f *repoFilter) init(fl []repoFilter) []repoFilter {
 		f := repoFilter{}
 		f.filter = "topic"
 		f.values = topics
-		f.function = containsTopic
+		f.function = listContains
 		fl = append(fl, f)
 	}
 
 	return fl
 }
 
-func containsTopic(t string, l []string) bool {
+func listContains(t string, l []string) bool {
 	for _, i := range l {
 		if i == t {
 			return true
@@ -343,16 +435,19 @@ func containsTopic(t string, l []string) bool {
 func init() {
 	rootCmd.AddCommand(repoCmd)
 
-	// Here you will define your flags and configuration settings.
-
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	repoCmd.PersistentFlags().String("foo", "f", "A help for foo")
-	rootCmd.PersistentFlags().StringP("author", "a", "YOUR NAME", "author name for copyright attribution")
-	repoCmd.Flags().StringVarP(&dateRange, "range", "r", "", "\"current\" or \"prior\" month")
-	repoCmd.Flags().StringArrayVarP(&topics, "topics", "t", topicsDefault, "-t help")
+	// repoCmd.PersistentFlags().String("foo", "f", "A help for foo")
+	// rootCmd.PersistentFlags().StringP("author", "a", "YOUR NAME", "author name for copyright attribution")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// repoCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	repoCmd.Flags().StringVarP(&dateRange, "range", "r", "", "\"current\" or \"prior\" month")
+	repoCmd.Flags().StringArrayVarP(&topics, "topics", "t", topicsDefault, "-t help")
+	repoCmd.Flags().StringVarP(&startDateArgument, "start_date", "s", "", "")
+	repoCmd.Flags().StringVarP(&endDateArgument, "end_date", "e", "", "")
+	repoCmd.Flags().BoolVarP(&totalsOnly, "aggregate_totals", "a", false, "Only output Aggregate totals")
+
 }
