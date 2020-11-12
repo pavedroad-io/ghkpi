@@ -53,7 +53,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.githubStatsKPI.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ghkpi.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -73,9 +73,9 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".githubStatsKPI" (without extension).
+		// Search config in home directory with name ".ghkpi" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".githubStatsKPI")
+		viper.SetConfigName(".ghkpi")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
