@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/github.com/pavedroad-io/ghkpi)](https://goreportcard.com/report/github.com/pavedroad-io/ghkpi)
+
 # ghkpi
 Aggregate status for one or more GitHub repositories.
 Scope is based on the security of the authenticated user.
@@ -19,313 +21,134 @@ go get -u github.com/pavedroad/ghkpi/ghkpi
 Or [download the binary](https://github.com/pavedroad-io/ghkpi/releases/latest) from the releases page.
 
 ## Use it
+```bash
+Aggregate statistics for a group of GitHub repositories
+
+Usage:
+  ghkpi repo [flags]
+
+Flags:
+  -a, --aggregate_totals     Only output Aggregate totals
+  -e, --end_date string      RFC3339 date, -e "2020-02-28T23:59:59Z"
+  -h, --help                 help for repo
+  -r, --range string         "current" or "prior" the current or prior month respectively
+  -s, --start_date string    RFC3339 date, -s "2020-01-01T00:00:00Z"
+  -t, --topics stringArray   -t topic1,topic2,topic3
+
+Global Flags:
+      --config string   config file (default is $HOME/.ghkpi.yaml)
+```
 
 ### Filtering
 
 #### By topics
-Use the -t options to filter repositories based on GitHub associated topics.  You can
-specify more than one topic by separating them with commas.
-```bash
+Use the -t options to filter repositories based on GitHub associated topics.  You can specify more than one topic by separating them with commas.
 
+```bash
 $ ghkpi repo -t one,two,three
 ```
 
-#### By date range
+#### By simple date range
 You can specify a date range with the -r option.  The two options are
-**current** or **prior**, for the current or previous month.  Failing to select a 
-period defaults to the full repository history
-
-The stats objects hold counters for lifetime and period specified.  Additions and Deletions are line counts.
+**current** or **prior**, for the current or previous month.  
+Failing to select a period defaults to the full repository history
 
 ```bash
 $ ghkpi repo -t one,two,three -r prior
 ```
 
+#### By flexible date range
+
+
+```bash
+$ ghkpi repo -t pr-kpi -s "2020-01-01T00:00:00Z" -e "2020-02-28T23:59:59Z"
+```
+
+### Only output totals
+By default, the summary totals and details for each repository are output.
+You can ask for only the aggregated totals to be output with the -a option.
+
+```bash
+$ ghkpi repo -t pr-kpi -a -s "2020-01-01T00:00:00Z" -e "2020-02-28T23:59:59Z"
+```
+
+# Output columns
+
+## Totals
+Includes the list of repositories that makeup the aggregate totals.  Along with top-level details like pull requests, issues, stars and watchers.
+
+It also includes two status objects that hold counters for lifetime of 
+all repositories and the period specified using the -r or -s/e options.  
+
+Additions and Deletions are line counts.
+
+It include as list of contributors and the totals number of combined commits
 
 
 ```json
 {
-  "totals": {
-    "name": "repositories: [githubStatsKPI, clients, cockroachdb-client, frontend, go-core, integrations, pavedroad, roadctl, scripts, templates]",
-    "forks_count": 2,
-    "stargazers_count": 10,
-    "watchers_count": 10,
-    "open_issues_count": 56,
-    "subscriber_count": 0,
-    "commit_count": 12,
-    "pull_created_count": 1,
-    "pull_closed_count": 0,
-    "stats": {
-      "life_time_counts": {
-        "lines_added": 1470647,
-        "lines_deleted": 182245,
-        "commits": 599
+  "name": "repositories: [clients, cockroachdb-client, frontend, ghkpi, go-core, integrations, pavedroad, roadctl, scripts, templates]",
+  "forks_count": 2,
+  "stargazers_count": 11,
+  "watchers_count": 11,
+  "open_issues_count": 62,
+  "subscriber_count": 0,
+  "commit_count": 13,
+  "pull_created_count": 1,
+  "pull_closed_count": 0,
+  "stats": {
+    "life_time_counts": {
+      "period": {
+        "start_date": "2019-03-10T20:02:56Z",
+        "end_date": "2020-11-12T13:09:16.04317166-08:00"
       },
-      "period_counts": {
-        "lines_added": 723841,
-        "lines_deleted": 8,
-        "commits": 8
-      }
-    }
-  },
-  "period": {
-    "start_date": "2020-10-01T00:00:00-07:00",
-    "end_date": "2020-10-31T00:00:00-07:00"
-  },
-  "details": [
-    {
-      "name": "githubStatsKPI",
-      "owner": "jscharber",
-      "type": "User",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 0,
-      "subscriber_count": 0,
-      "commit_count": 7,
-      "pull_created_count": 1,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 723772,
-          "lines_deleted": 0,
-          "commits": 4
-        },
-        "period_counts": {
-          "lines_added": 723772,
-          "lines_deleted": 0,
-          "commits": 4
-        }
-      }
+      "lines_added": 1123504,
+      "lines_deleted": 287225,
+      "commits": 602,
+      "contributor_count": 8,
+      "contributor_list": [
+        "jscharber",
+        "MarkGreenPR",
+        "CandaceScharber",
+        "jscharbervs",
+        "agstaunton",
+        "capgar",
+        "rick4106t",
+        "shgayle"
+      ]
     },
+    "period_counts": {
+      "period": {
+        "start_date": "2020-10-01T00:00:00-07:00",
+        "end_date": "2020-10-31T00:00:00-07:00"
+      },
+      "lines_added": 376688,
+      "lines_deleted": 104988,
+      "commits": 10,
+      "contributor_count": 1,
+      "contributor_list": [
+        "jscharber"
+      ]
+    }
+  }
+}
+```
+
+## Details
+By default, the output also includes the same information for each 
+repository in the details array.
+
+```json
+  "details": [
     {
       "name": "clients",
       "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 1,
-      "watchers_count": 1,
-      "open_issues_count": 0,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 6064,
-          "lines_deleted": 2975,
-          "commits": 8
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "cockroachdb-client",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 0,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 213,
-          "lines_deleted": 0,
-          "commits": 1
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "frontend",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 0,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 55897,
-          "lines_deleted": 3757,
-          "commits": 16
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "go-core",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 1,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 8408,
-          "lines_deleted": 4285,
-          "commits": 79
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "integrations",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 0,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 4654,
-          "lines_deleted": 1613,
-          "commits": 11
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "pavedroad",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 1,
-      "stargazers_count": 7,
-      "watchers_count": 7,
-      "open_issues_count": 2,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 21105,
-          "lines_deleted": 11754,
-          "commits": 334
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "roadctl",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 1,
-      "watchers_count": 1,
-      "open_issues_count": 49,
-      "subscriber_count": 0,
-      "commit_count": 0,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 595896,
-          "lines_deleted": 128887,
-          "commits": 84
-        },
-        "period_counts": {
-          "lines_added": 0,
-          "lines_deleted": 0,
-          "commits": 0
-        }
-      }
-    },
-    {
-      "name": "scripts",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 0,
-      "stargazers_count": 0,
-      "watchers_count": 0,
-      "open_issues_count": 2,
-      "subscriber_count": 0,
-      "commit_count": 2,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 182,
-          "lines_deleted": 16,
-          "commits": 4
-        },
-        "period_counts": {
-          "lines_added": 58,
-          "lines_deleted": 0,
-          "commits": 1
-        }
-      }
-    },
-    {
-      "name": "templates",
-      "owner": "pavedroad-io",
-      "type": "Organization",
-      "forks_count": 1,
-      "stargazers_count": 1,
-      "watchers_count": 1,
-      "open_issues_count": 2,
-      "subscriber_count": 0,
-      "commit_count": 3,
-      "pull_created_count": 0,
-      "pull_closed_count": 0,
-      "stats": {
-        "life_time_counts": {
-          "lines_added": 54456,
-          "lines_deleted": 28958,
-          "commits": 58
-        },
-        "period_counts": {
-          "lines_added": 11,
-          "lines_deleted": 8,
-          "commits": 3
-        }
-      }
-    }
-  ]
-}
+....
+},
+{....}
+]
 ```
+
 
 ## Licensing
 
