@@ -1,16 +1,24 @@
+<img style="float: right; text-align: center;" src="assets/ghkpi-logo.png">
+
+
+
+# Aggregation for GitHub KPIs
+Aggregate status for one or more GitHub repositories. Scope is based on the security of the authenticated user.
+
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/pavedroad-io/ghkpi)](https://goreportcard.com/report/github.com/pavedroad-io/ghkpi)
+## Free OSS tools for generating KPI across multiple GitHub repositories
 
-# ghkpi
-Aggregate status for one or more GitHub repositories.
-Scope is based on the security of the authenticated user.
+<img src="assets/ghkpi-cli-exmaple.gif">
 
-You can filter repositories using the -t option and specify a
-comma separated list of topics associated with your GitHub
-repositories
+# Table of contents
 
 - [Get it](#get-it)
 - [Use it](#use-it)
-- [Licensing](#licensing)
+- [FAQ](FAQ.md)
+- [Contribute](CONTRIBUTING.md)
+- [Licensing](LICENSE.md)
+- [test](#test)
 
 ## Get it
 
@@ -149,7 +157,8 @@ repository in the details array.
 ]
 ```
 
-
-## Licensing
+# Licensing
 
 - Any original code is licensed under the [Apache 2 License](./LICENSE).
+
+
