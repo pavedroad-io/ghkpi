@@ -1,10 +1,14 @@
-# Release Notes for v1.0.0beta - v1.0.0beta feature release
+# Release Notes for v1.0.1beta - Feature / improvement release
 
 ## New Features
+- Support specifying custom date ranges with -s and -e options
+- Support only outputting totals with -a option
 
 ## Bug Fixes
 
 ## Improvements
-- Track contributors for the life of a repository and activity for the specified period.
+- Improved documentation in README.md
+- Add community files
+- Add Go report card badge in README.md
 
 ## Other Changes
